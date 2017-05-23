@@ -8,9 +8,6 @@
  */
 package com.taobao.profile.thread;
 
-import java.io.File;
-import java.util.concurrent.TimeUnit;
-
 import com.taobao.profile.Manager;
 import com.taobao.profile.Profiler;
 import com.taobao.profile.config.ProfConfig;
@@ -19,6 +16,9 @@ import com.taobao.profile.dependence_query.SlowQueryData;
 import com.taobao.profile.runtime.ProfStack;
 import com.taobao.profile.runtime.ThreadData;
 import com.taobao.profile.utils.DailyRollingFileWriter;
+
+import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 将性能分析数据写到log中
@@ -106,7 +106,7 @@ public class DataDumpThread extends Thread {
 		for (int index = 0; index < threadData.length; index++) {
 			ThreadData profilerData = threadData[index];
 			if (profilerData == null) {
-		c		continue;
+				continue;
 			}
 			ProfStack<long[]> profile = profilerData.profileData;
 			while (profile.size() > 0) {

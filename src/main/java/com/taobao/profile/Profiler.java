@@ -32,6 +32,10 @@ public class Profiler {
 	 */
 	public static AtomicInteger instrumentMethodCount = new AtomicInteger(0);
 
+	/**
+	 * 最大的线程数  在long 被用光之前 将thread info dump 出去
+
+	 */
 	private final static int size = 65535;
 	/**
 	 * 线程数组
@@ -234,7 +238,6 @@ public class Profiler {
 		Object[] frameData = thrData.stackFrame.pop();
 		return frameData;
 	}
-
 	/**
 	 * 开始记录mysql的信息
 	 * @param host

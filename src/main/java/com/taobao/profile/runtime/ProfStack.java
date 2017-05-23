@@ -16,7 +16,7 @@ import java.util.Arrays;
  * @author xiaodu
  * @since 2010-6-23
  */
-public class ProfStack<E> {
+ public class ProfStack<E> {
 
 	/**
 	 * 

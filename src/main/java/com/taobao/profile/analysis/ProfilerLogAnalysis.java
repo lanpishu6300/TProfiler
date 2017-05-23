@@ -8,24 +8,14 @@
  */
 package com.taobao.profile.analysis;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
-
 import com.taobao.profile.utils.MathUtils;
+
+import java.io.*;
+import java.util.*;
 
 /**
  * 分析Profiler生成的Log
- * 
+ *
  * @author shutong.dy
  * @since 2012-1-11
  */
@@ -39,17 +29,22 @@ public class ProfilerLogAnalysis {
 	private Map<Long, TimeSortData> cacheMethodMap = new HashMap<Long, TimeSortData>();
 	private Map<Long, String> methodIdMap = new HashMap<Long, String>();
 
+	private Map<Long,TransactionTimeSortData> transactionList = new HashMap<Long,TransactionTimeSortData>();
+
+	private long transactionMethodId;
+
+
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) {
-		if (args.length != 4) {
-			System.err.println("Usage: <tprofiler.log path> <tmethod.log path> <topmethod.log path> <topobject.log path>");
+		if (args.length != 5) {
+			System.err.println("Usage: <tprofiler.log path> <tmethod.log path> <topmethod.log path> <topobject.log path> <toptransaction.log path>");
 			return;
 		}
 		ProfilerLogAnalysis analysis = new ProfilerLogAnalysis(args[0], args[1]);
 		analysis.reader();
-		analysis.printResult(args[2], args[3]);
+		analysis.printResult(args[2], args[3], args[4]);
 	}
 
 	/**
@@ -63,7 +58,7 @@ public class ProfilerLogAnalysis {
 
 	/**
 	 * 取出结果,供分析程序调用
-	 * 
+	 *
 	 * @return
 	 */
 	public List<TimeSortData> getTimeSortData() {
@@ -89,6 +84,11 @@ public class ProfilerLogAnalysis {
 				if (data.length != 2) {
 					continue;
 				}
+
+				if (line.contains("invokeWithinTransaction")) {
+					transactionMethodId = Long.parseLong(data[0]);
+				}
+
 				methodIdMap.put(Long.parseLong(data[0]), String.valueOf(data[1]));
 			}
 			reader.close();
@@ -113,6 +113,10 @@ public class ProfilerLogAnalysis {
 				if (data.length != 4) {
 					continue;
 				}
+
+				pushThreadInfo(Long.parseLong(data[0]), Long.parseLong(data[1]), Long.parseLong(data[2]),
+						Long.parseLong(data[3]));
+
 				merge(Long.parseLong(data[0]), Long.parseLong(data[1]), Long.parseLong(data[2]),
 						Long.parseLong(data[3]));
 			}
@@ -132,9 +136,23 @@ public class ProfilerLogAnalysis {
 		doMerge();
 	}
 
+	private void pushThreadInfo(long threadid, long stackNum, long methodId, long useTime) {
+		if (transactionList.get(threadid) == null) {
+			TransactionTimeSortData d = new TransactionTimeSortData(threadid, useTime, new ArrayList<Long>(Arrays.asList(methodId)));
+				transactionList.put(threadid, d);
+		}
+		TransactionTimeSortData transactionTimeSortData = transactionList.get(threadid);
+		transactionTimeSortData.getMethodIdList().add(methodId);
+		if (methodId == transactionMethodId) {
+			transactionTimeSortData.setTime(useTime);
+		}
+
+
+	}
+
 	/**
 	 * 合并数据
-	 * 
+	 *
 	 * @param threadid
 	 * @param stackNum
 	 * @param methodId
@@ -190,16 +208,42 @@ public class ProfilerLogAnalysis {
 	/**
 	 * 输出分析结果
 	 */
-	public void printResult(String topMethodPath, String topObjectPath) {
+	public void printResult(String topMethodPath, String topObjectPath, String topTransactionPath) {
 		List<TimeSortData> list = new ArrayList<TimeSortData>();
 		list.addAll(cacheMethodMap.values());
 		Collections.sort(list);
 
 		BufferedWriter topMethodWriter = null;
 		BufferedWriter topObjectWriter = null;
+		BufferedWriter topTransactionWriter = null;
+		List<TransactionTimeSortData> tl = new ArrayList();
+		tl.addAll(transactionList.values());
+		Collections.sort(tl);
+
+
 		try {
 			topMethodWriter = new BufferedWriter(new FileWriter(topMethodPath));
 			topObjectWriter = new BufferedWriter(new FileWriter(topObjectPath));
+			topTransactionWriter = new BufferedWriter(new FileWriter(topTransactionPath));
+
+			for (TransactionTimeSortData sortData : tl) {
+				StringBuilder sb = new StringBuilder();
+				List<Long> methodList = sortData.getMethodIdList();
+
+				sb.append(sortData.getThreadId());
+				sb.append("\t");
+				sb.append(sortData.getTime());
+				sb.append("\n");
+				for (Long methodId : methodList) {
+					sb.append(methodIdMap.get(methodId));
+					sb.append("\n");
+				}
+				sb.append("----------------------");
+				sb.append("\n");
+				topTransactionWriter.write(sb.toString());
+
+			}
+
 			for (TimeSortData data : list) {
 				StringBuilder sb = new StringBuilder();
 				Stack<Long> stack = data.getValueStack();
@@ -225,6 +269,7 @@ public class ProfilerLogAnalysis {
 					topObjectWriter.write(sb.toString());
 				}
 			}
+			topTransactionWriter.flush();
 			topMethodWriter.flush();
 			topObjectWriter.flush();
 		} catch (IOException e) {
@@ -244,12 +289,19 @@ public class ProfilerLogAnalysis {
 					e.printStackTrace();
 				}
 			}
+			if (topTransactionWriter != null) {
+				try {
+					topTransactionWriter.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
 		}
 	}
 
 	/**
 	 * 方法栈
-	 * 
+	 *
 	 * @author shutong.dy
 	 * @since 2012-1-11
 	 */

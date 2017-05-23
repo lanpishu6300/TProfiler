@@ -1,16 +1,29 @@
 package com.taobao.profile.test;
 
+import com.mysql.jdbc.ConnectionImpl;
+import com.mysql.jdbc.Field;
+import com.mysql.jdbc.StatementImpl;
+import com.taobao.profile.Profiler;
+import com.taobao.profile.config.ConfigureProperties;
+import org.junit.Assert;
+import org.junit.Test;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
-import org.junit.Assert;
-import org.junit.Test;
-
-import com.taobao.profile.config.ConfigureProperties;
-
 public class ConfigurePropertiesTest {
-  
+
+  private ConnectionImpl connection;
+
+  private Profiler profiler;
+
+    public DataSourceTransactionManager dataSourceTransactionManager;
+    ConnectionImpl getConnection;
+    public static String db;
+    public static String host;
+    public static int port;
   @Test
   public void testConfigureProperties(){
     Properties prop = new Properties();
@@ -22,7 +35,7 @@ public class ConfigurePropertiesTest {
     Properties properties  = new ConfigureProperties(prop, context);
     Assert.assertEquals(properties.getProperty("log.file.path"), System.getProperty("user.home") + "/tprofiler.log" );
   }
-  
+
   @Test
   public void testConfigure() throws IOException{
     Properties properties = new Properties();
@@ -40,4 +53,40 @@ public class ConfigurePropertiesTest {
       in.close();
     }
   }
+
+
+  public void testEhance(StatementImpl callingStatement, String sql, int maxRows, Buffer packet, int resultSetType, int resultSetConcurrency, boolean streamResults, String catalog, Field[] cachedMetadata) {
+
+
+  //  TransactionStatus transaction = dataSourceTransactionManager.getTransaction();
+
+    if (sql == null) {
+          sql = new String();
+      } else {
+          sql = new Buffer().getByteBuffer().toString();
+
+      }
+
+      String host = connection.getHost();
+      int port = this.port;
+
+      String db = this.db;
+
+
+
+      Profiler.start4Mysql(host,port,db,sql);
+
+  }
+
+    static class Buffer {
+
+      private byte[] byteBuffer;
+
+
+        public byte[] getByteBuffer() {
+            return this.byteBuffer;
+        }
+
+    }
+
 }
